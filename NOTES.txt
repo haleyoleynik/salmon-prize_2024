@@ -1,0 +1,38 @@
+## Working Notes
+
+### Partial Auto-Correlation Dominant Lags
+- Alagnak: 1, 10
+- Egegik: 1, 2, 3
+- Igushik: 1
+- Kvichak: 1, 2, 3, 4, 5
+- Nushagak: 1, 2, 3
+- Naknek: 1, 9
+- Ugashik: 1, 10
+- Bonneville: 1, 2, 7
+- Chilko: 1, 3, 4
+- Late Stuart: 4
+- Quesnal: 4
+- Raft: 1, 4, 5
+- Stellako: 4
+
+CONFIRMED PREDICTIONS
+
+Fraser River Stocks
+- Quesnel       auto.arima --> c(3, 1, 0)
+- Late Stuart   auto.arima --> c(4, 0, 0)
+- Chilko        Arima --> c(4, 0, 0) --> remove years 41-60
+- Stellako      Arima --> c(4, 0, 0)
+- Raft (NEEDS MORE ATTENTION)
+
+Columbia River Stocks
+- Bonneville    auto.arima -> c(1, 1, 0)
+
+Bristol Bay Stocks
+- Alagnak       TRY FITTING ARIMA TO LM RESIDUALS
+- Egegik        DONT KNOW WHAT TO DO
+- Igushik       auto.arima -> c(1, 1, 1)
+- Kvichak       auto.arima --> c(2, 0, 0)
+- Naknek        TRY FITTING ARIMA TO LM RESIDUALS
+- Nushagak      HAVE CARL PONTIFICATE ABOUT (age structure coefficients)
+- Ugashik       auto.arima --> c(0, 1, 2)
+- Wood          TRY FITTING ARIMA TO LM RESIDUALS
