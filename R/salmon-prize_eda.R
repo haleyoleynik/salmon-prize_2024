@@ -4,10 +4,23 @@
 require(tidyverse)
 require(readr)
 require(ggplot2)
+require(forecast)
 
 # read data 
 df <- read_csv("Bristol_Columbia_Fraser_combined.csv")
 
+# Make ln(R/S) time series 
+lnrs <- df %>%
+  select(System, Stock, BroodYear, Spawners = Escapement, Recruits) %>%
+  mutate(lnrs = log(Recruits/Spawners))
+
+# plot stocks through time 
+ggplot(lnrs, aes(x=BroodYear, y=lnrs)) + 
+  geom_line() +
+  facet_wrap(vars(Stock)) +
+  theme_classic()
+
+# long format to calculate returns 
 long.df <- df %>% 
   pivot_longer(cols = AgeClass_0.1:AgeClass_3.4, names_to = "Age", values_to = "Number")
 
@@ -55,6 +68,40 @@ try <- df %>%
   rowwise() %>%
   mutate(TotalReturns = sum(Age1,Age2,Age3,Age4,Age5,Age6,Age7,na.rm=T))
 
+###
+# USE THIS !!!!! calculate total returns and add years onto end of time series 
+total_returns <- df %>%
+  group_by(Stock) %>%
+  complete(BroodYear = 1948:2025) %>%
+  ungroup() %>%
+  rowwise() %>%
+  mutate(Age1 = AgeClass_0.1,
+         Age2 = sum(AgeClass_0.2, AgeClass_1.1,na.rm=T),
+         Age3 = sum(AgeClass_0.3, AgeClass_1.2, AgeClass_2.1,na.rm=T),
+         Age4 = sum(AgeClass_0.4, AgeClass_1.3, AgeClass_2.2, AgeClass3.1,na.rm=T),
+         Age5 = sum(AgeClass_0.5, AgeClass_1.4, AgeClass_2.3, AgeClass_3.2,na.rm=T),
+         Age6 = sum(AgeClass_1.5, AgeClass_2.4, AgeClass_3.3,na.rm=T),
+         Age7 = AgeClass_3.4) %>%
+  select(System, Stock,BroodYear,Age1,Age2,Age3,Age4,Age5,Age6,Age7) %>%
+  group_by(Stock) %>%
+  mutate(Age1 = lag(Age1, 1),
+         Age2 = lag(Age2, 2),
+         Age3 = lag(Age3, 3),
+         Age4 = lag(Age4, 4),
+         Age5 = lag(Age5, 5),
+         Age6 = lag(Age6, 6),
+         Age7 = lag(Age7, 7)) %>%
+  ungroup() %>%
+  rowwise() %>%
+  mutate(TotalReturns = sum(Age1,Age2,Age3,Age4,Age5,Age6,Age7,na.rm=T))
+
+total_returns %>%
+  filter(Stock == "Nushagak") %>%
+  filter(TotalReturns > 0) %>%
+  ggplot(aes(x=BroodYear, y=TotalReturns)) +
+    geom_line() +
+  labs(x="Year", y = "Returns") + 
+  theme_classic()
 
 columbia_totalreturns <- try %>% filter(Stock == "Bonneville") %>%
   pull(TotalReturns)
@@ -198,7 +245,78 @@ try %>% split(try$Stock) %>%
       cor.test(df$TotalReturns, df$Age3)$estimate 
   })
 
+# ARIMA models with lnrs time series --------------------
+quesnel_totalreturns <- lnrs %>% filter(Stock == "Late Stuart") %>%
+  filter(lnrs > 0) %>%
+  pull(lnrs)
 
+arima_out <- auto.arima(quesnel_totalreturns)
+f <- forecast(arima_out)
+
+par(mfrow = c(1,1))
+plot(f)
+
+pred <- quesnel_totalreturns+arima_out$residuals
+plot(quesnel_totalreturns, type="l", ylim = c(-3,6))
+lines(pred, col="red")
+
+# can you bound it at 0 ????
+
+## Pink salmon as a covariate --------
+np.pink <- readr::read_csv("/Users/haleyoleynik/Documents/GitHub/salmon-prize_2024/covariate_data/NP_pink.csv")
+
+lnrs.pink <- lnrs %>%
+  rename(year = BroodYear) %>%
+  left_join(np.pink, by = "year")
+
+quesnel_lnrs_pink <- lnrs.pink %>% filter(Stock == "Late Stuart") %>%
+  filter(lnrs > 0) %>%
+  select(year, lnrs, pink)
+
+arima_out <- auto.arima(quesnel_lnrs_pink$lnrs, xreg=quesnel_lnrs_pink$pink)
+f <- forecast(arima_out, xreg=c(0.3862020,0.6980289))
+plot(f)
+
+# plot the fit 
+plot(f$fitted, ylim = c(0,5)) # what is this?? 
+lines(quesnel_lnrs_pink$lnrs, col="red")
+
+lnrs.pink.naomit <- lnrs.pink %>% 
+  na.omit()
+
+ccf(lnrs.pink.naomit$pink, lnrs.pink.naomit$lnrs)
+plot(lnrs.pink.naomit$pink, lnrs.pink.naomit$lnrs)
+
+## all stocks ----------- 
+
+# filter out Bonneville, missing data 
+lnrs.pink <- lnrs.pink %>% filter(Stock != "Bonneville")
+
+par(mfrow=c(3, 5))
+stocks <- lnrs.pink %>% pull(Stock) %>% unique
+for(s in stocks){
+  tseries <- lnrs.pink %>% filter(Stock == s) %>% filter(lnrs > 0) %>% pull(lnrs) %>% na.omit() 
+  acf(tseries, main=s)
+}
+
+
+par(mfrow=c(3, 5))
+stocks <- lnrs.pink %>% pull(Stock) %>% unique
+for(s in stocks){
+  tseries <- lnrs.pink %>% filter(Stock == s) %>% filter(lnrs > 0) %>% pull(lnrs) %>% na.omit() 
+  age4 <- try %>% filter(Stock == s) %>% pull(Age5)
+  
+  totret_mat <- returns$TotalReturns %>% as.matrix()
+  age_returns <- try %>% filter(Stock == s) %>%
+    select(starts_with("Age")) %>%
+    as.matrix
+  
+  xreg <- t(apply(as.matrix(1:nrow(age_returns)), 1, \(i) age_returns[i,]/totret_mat[i,1]))
+  
+  
+  plot(xreg[,2], tseries, main=s)
+  # c <- cor.test(tseries, age4)
+}
 
 
 #######
