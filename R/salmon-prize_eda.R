@@ -95,108 +95,13 @@ total_returns <- df %>%
   rowwise() %>%
   mutate(TotalReturns = sum(Age1,Age2,Age3,Age4,Age5,Age6,Age7,na.rm=T))
 
-total_returns %>%
-  filter(Stock == "Nushagak") %>%
-  filter(TotalReturns > 0) %>%
-  ggplot(aes(x=BroodYear, y=TotalReturns)) +
-    geom_line() +
-  labs(x="Year", y = "Returns") + 
-  theme_classic()
 
-columbia_totalreturns <- try %>% filter(Stock == "Bonneville") %>%
-  pull(TotalReturns)
+st <- "Wood"
 
-arima_out <- auto.arima(columbia_totalreturns, start.Q=2)
-f <- forecast(arima_out)
+returns <- lnrs %>% filter(Stock == st, !(BroodYear %in% c(2002:2007))) %>% select(BroodYear, lnrs=lnrs) %>% na.omit
 
-plot(f, ylim=c(0, 1e6))
-
-pred <- columbia_totalreturns+arima_out$residuals
-
-plot(columbia_totalreturns, type="l")
-lines(pred, col="red")
-
-
-quesnel_totalreturns <- try %>% filter(Stock == "Late Stuart") %>%
-  pull(TotalReturns)
-
-arima_out <- auto.arima(quesnel_totalreturns, start.Q=1)
-f <- forecast(arima_out)
-
-plot(f, ylim=c(0, 6e6))
-
-pred <- quesnel_totalreturns+arima_out$residuals
-plot(quesnel_totalreturns, type="l")
-lines(pred, col="red")
-
-
-
-quesnel_totalreturns <- try %>% filter(Stock == "Ugashik") %>% filter(TotalReturns > 0) %>%
-  pull(TotalReturns)
-
-# quesnel_totalreturns[1:25] <- NA
-
-arima_out <- auto.arima(quesnel_totalreturns)
-f <- forecast(arima_out)
-
-plot(f, ylim=c(0, 2e7))
-
-pred <- quesnel_totalreturns+arima_out$residuals
-plot(quesnel_totalreturns, type="l")
-lines(pred, col="red")
-
-
-
-raft_totalreturns <- try %>% filter(Stock == "Raft") %>%
-  pull(TotalReturns)
-
-arima_out <- auto.arima(raft_totalreturns, start.Q=1)
-f <- forecast(arima_out)
-
-plot(f, ylim=c(0, 1e5))
-
-pred <- raft_totalreturns+arima_out$residuals
-plot(raft_totalreturns, type="l")
-lines(pred, col="red")
-
-
-
-
-par(mfrow=c(1, 1))
-returns <- try %>% 
-  filter(Stock == "Nushagak", TotalReturns != 0) %>% 
-  select(BroodYear, Age=Age4, TotalReturns=TotalReturns)
-
-plot(returns$TotalReturns, type="l")
-
-arima_out <- Arima(returns$TotalReturns, order=c(2, 1, 1))
-f <- forecast(arima_out)
-plot(f)
-
-pred <- totalreturns+arima_out$residuals
-plot(totalreturns, type="l")
-lines(pred, col="red")
-
-returns
-returns %>% mutate(prop=Age/TotalReturns) %>% summary(prop)
-
-st = "Egegik"
-
-quesnel_totalreturns <- try %>% filter(Stock == st) %>% filter(TotalReturns > 0) %>%
-  pull(TotalReturns)
-
-# quesnel_totalreturns[55:61] <- NA
-
-arima_out <- auto.arima(quesnel_totalreturns)
-f <- forecast(arima_out)
-
-par(mfrow=c(2, 1))
-plot(f, ylim=c(0, 2e7))
-
-returns <- try %>% filter(Stock == st, TotalReturns != 0) %>% select(BroodYear, TotalReturns=TotalReturns)
-
-totret_mat <- returns$TotalReturns %>% as.matrix()
-age_returns <- try %>% filter(Stock == st, TotalReturns != 0) %>%
+totret_mat <- try %>% filter(Stock == st, BroodYear %in% returns$BroodYear) %>% pull(TotalReturns) %>% as.matrix()
+age_returns <- try %>% filter(Stock == st, BroodYear %in% returns$BroodYear) %>%
   select(starts_with("Age")) %>%
   as.matrix
 
@@ -204,50 +109,16 @@ xreg <- t(apply(as.matrix(1:nrow(age_returns)), 1, \(i) age_returns[i,]/totret_m
 # xreg <- age_returns
 
 #arima_out <- Arima(returns$TotalReturns[1:59], order=c(8, 1, 0))#, xreg=xreg[1:59,3:5])
-arima_out <- auto.arima(returns$TotalReturns, xreg=xreg[,3:5])
+arima_out <- auto.arima(returns$lnrs, xreg=xreg[,3:5])
 f <- forecast(arima_out, xreg=xreg[60:61, 3:5])
-plot(f, ylim=c(0, 2e7))
+plot(f, ylim=c(0, 3))
 
 plot(f$fitted)
-lines(returns, col="red")
 
-lines(returns, col="red")
-
-
-par(mfrow=c(3, 5))
-stocks <- try %>% pull(Stock) %>% unique
-for(s in stocks){
-  tseries <- try %>% filter(Stock == s) %>% pull(TotalReturns)
-  acf(tseries, main=s)
-}
-
-
-par(mfrow=c(3, 5))
-stocks <- try %>% pull(Stock) %>% unique
-for(s in stocks){
-  tseries <- try %>% filter(Stock == s) %>% pull(TotalReturns)
-  age4 <- try %>% filter(Stock == s) %>% pull(Age5)
-
-  totret_mat <- returns$TotalReturns %>% as.matrix()
-  age_returns <- try %>% filter(Stock == s) %>%
-    select(starts_with("Age")) %>%
-    as.matrix
-
-  xreg <- t(apply(as.matrix(1:nrow(age_returns)), 1, \(i) age_returns[i,]/totret_mat[i,1]))
-
-
-  plot(xreg[,2], tseries, main=s)
-  # c <- cor.test(tseries, age4)
-}
-
-try %>% split(try$Stock) %>%
-  map(\(df){
-      cor.test(df$TotalReturns, df$Age3)$estimate 
-  })
 
 # ARIMA models with lnrs time series --------------------
-quesnel_totalreturns <- lnrs %>% filter(Stock == "Late Stuart") %>%
-  filter(lnrs > 0) %>%
+quesnel_totalreturns <- lnrs %>% filter(Stock == "Wood") %>%
+  filter(!is.na(lnrs), !(BroodYear %in% c(2002:2007))) %>%
   pull(lnrs)
 
 arima_out <- auto.arima(quesnel_totalreturns)
@@ -325,17 +196,17 @@ for(s in stocks){
 #######
 #######
 
-alagnak_returns <- try %>% filter(Stock == "Alagnak", TotalReturns > 0) %>% select(BroodYear, TotalReturns)
+alagnak_returns <- lnrs %>% filter(Stock == "Wood") %>% select(BroodYear, lnrs)
 
-model <- lm(TotalReturns ~ BroodYear, data=alagnak_returns)
+model <- lm(lnrs ~ BroodYear, data=alagnak_returns)
 preds <- predict(model, newdata=data.frame(BroodYear=1955:2023))
 summary(model)
 
-plot(1:nrow(alagnak_returns), alagnak_returns$TotalReturns, type="l")
+plot(1:nrow(alagnak_returns), alagnak_returns$lnrs, type="l")
 lines(1:length(preds), preds, col="red")
 alagnak_returns
 
-ar_out <- Arima(model$residuals, order=c(4, 0, 1))
+ar_out <- auto.arima(model$residuals)
 ar_out
 
 plot(model$residuals)
