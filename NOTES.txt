@@ -28,11 +28,11 @@ Columbia River Stocks
 - Bonneville    auto.arima -> c(1, 1, 0)
 
 Bristol Bay Stocks
-- Alagnak       TRY FITTING ARIMA TO LM RESIDUALS
-- Egegik        DONT KNOW WHAT TO DO
-- Igushik       auto.arima -> c(1, 1, 1)
-- Kvichak       auto.arima --> c(2, 0, 0)
-- Naknek        TRY FITTING ARIMA TO LM RESIDUALS
-- Nushagak      HAVE CARL PONTIFICATE ABOUT (age structure coefficients)
-- Ugashik       auto.arima --> c(0, 1, 2)
-- Wood          TRY FITTING ARIMA TO LM RESIDUALS
+- Alagnak       Use LNRS models (auto.arima(0, 0, 1))
+- Egegik        Use proportion age returns (auto.arima(1, 0, 0))
+- Igushik       Use LNRS models (auto.arima(2, 0, 2))
+- Kvichak       Use LNRS models (auto.arima(0, 0, 1))
+- Naknek        Use LNRS models (auto.arima(0, 0, 1))
+- Nushagak      Use proportion age returns (auto.arima(1, 0, 0))
+- Ugashik       Use LNRS models (auto.arima(2, 0, 2))
+- Wood          TRY FITTING ARIMA TO LNRS LM RESIDUALS
