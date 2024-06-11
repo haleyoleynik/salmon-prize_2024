@@ -196,10 +196,10 @@ for(s in stocks){
 #######
 #######
 
-alagnak_returns <- lnrs %>% filter(Stock == "Wood") %>% select(BroodYear, lnrs)
+alagnak_returns <- lnrs %>% filter(Stock == "Wood") %>% select(BroodYear, lnrs) %>% na.omit()
 
 model <- lm(lnrs ~ BroodYear, data=alagnak_returns)
-preds <- predict(model, newdata=data.frame(BroodYear=1955:2023))
+preds <- predict(model, newdata=data.frame(BroodYear=1963:2024))
 summary(model)
 
 plot(1:nrow(alagnak_returns), alagnak_returns$lnrs, type="l")
@@ -213,5 +213,31 @@ plot(model$residuals)
 points(ar_out$residuals, col="red")
 f1 <- forecast(ar_out)
 f1
-
 plot(f1)
+
+#             Point Forecast      Lo 80     Hi 80      Lo 95    Hi 95
+# 2024 = 62   4.464680e-06 -0.6893410   0.6893499   -1.0542584  1.054267
+
+
+# Back calculate lnrs from residuals --- 
+# Get the forecasted residuals
+forecasted_residuals <- f1$mean
+
+# Combine the linear model predictions with the forecasted residuals
+forecasted_lnrs <- preds[54:62] + forecasted_residuals[1:9]
+
+# Plot the original lnrs data, the linear model predictions, and the final forecasted lnrs values
+plot(1:nrow(alagnak_returns), alagnak_returns$lnrs, type="l", ylim=range(c(alagnak_returns$lnrs, preds, forecasted_lnrs), finite=TRUE))
+#lines(1:length(preds), preds, col="red")
+lines((nrow(alagnak_returns) + 1):(nrow(alagnak_returns) + length(forecasted_lnrs)), forecasted_lnrs, col="blue")
+
+## Back calculate recruits from lnrs ---
+
+# calculate recruits from lnrs and Spawners
+# R = exp(lnrs)*Sp
+# in year 1, R+4 = exp(lnrs)*Sp
+# so for 2024, we want to know the lnrs for 2020 (when those recruits are spawned)
+exp(lnrs)*Sp 
+
+
+
