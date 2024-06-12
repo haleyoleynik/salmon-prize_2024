@@ -239,5 +239,40 @@ lines((nrow(alagnak_returns) + 1):(nrow(alagnak_returns) + length(forecasted_lnr
 # so for 2024, we want to know the lnrs for 2020 (when those recruits are spawned)
 exp(lnrs)*Sp 
 
+# Calculate proportions for return years ---------- 
+
+new.df <- df %>%
+  group_by(Stock) %>%
+  complete(BroodYear = 1948:2025) %>%
+  ungroup() %>%
+  rowwise() %>%
+  mutate(Age1 = AgeClass_0.1,
+         Age2 = sum(AgeClass_0.2, AgeClass_1.1,na.rm=T),
+         Age3 = sum(AgeClass_0.3, AgeClass_1.2, AgeClass_2.1,na.rm=T),
+         Age4 = sum(AgeClass_0.4, AgeClass_1.3, AgeClass_2.2, AgeClass3.1,na.rm=T),
+         Age5 = sum(AgeClass_0.5, AgeClass_1.4, AgeClass_2.3, AgeClass_3.2,na.rm=T),
+         Age6 = sum(AgeClass_1.5, AgeClass_2.4, AgeClass_3.3,na.rm=T),
+         Age7 = AgeClass_3.4) %>%
+  select(System, Stock,BroodYear,Age1,Age2,Age3,Age4,Age5,Age6,Age7) 
+
+
+proportions <- new.df %>%
+  rowwise() %>%
+  mutate(total = sum(c_across(Age1:Age7),na.rm=T)) %>%
+  mutate(prop4 = Age4 / total,
+         prop5 = Age5 / total,
+         prop6 = Age6 / total) %>%
+  group_by(Stock) %>%
+  mutate(prop4 = lag(prop4, 4),
+         prop5 = lag(prop5, 5),
+         prop6 = lag(prop6, 6)) %>%
+  select(ReturnYear = BroodYear, prop4,prop5,prop6)
+
+
+
+
+
+
+
 
 
