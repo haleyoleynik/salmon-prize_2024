@@ -268,7 +268,7 @@ proportions <- new.df %>%
          prop6 = lag(prop6, 6)) %>%
   select(ReturnYear = BroodYear, prop4,prop5,prop6)
 
-
+#write_csv(proportions, "return_proportions.csv")
 
 
 
