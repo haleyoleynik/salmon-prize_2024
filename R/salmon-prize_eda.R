@@ -241,6 +241,9 @@ exp(lnrs)*Sp
 
 # Calculate proportions for return years ---------- 
 
+df <- df %>%
+  mutate(Stock = ifelse(Stock == "Late Stuart", "LateStuart", Stock))
+
 new.df <- df %>%
   group_by(Stock) %>%
   complete(BroodYear = 1948:2025) %>%
@@ -259,20 +262,100 @@ new.df <- df %>%
 proportions <- new.df %>%
   rowwise() %>%
   mutate(total = sum(c_across(Age1:Age7),na.rm=T)) %>%
-  mutate(prop4 = Age4 / total,
-         prop5 = Age5 / total,
-         prop6 = Age6 / total) %>%
+  mutate(
+    prop1 = Age1 / total,
+    prop2 = Age2 / total,
+    prop3 = Age3 / total,
+    prop4 = Age4 / total,
+    prop5 = Age5 / total,
+    prop6 = Age6 / total,
+    prop7 = Age7 / total
+  ) %>%
   group_by(Stock) %>%
-  mutate(prop4 = lag(prop4, 4),
-         prop5 = lag(prop5, 5),
-         prop6 = lag(prop6, 6)) %>%
-  select(ReturnYear = BroodYear, prop4,prop5,prop6)
+  mutate(
+    prop1 = lag(prop1, 1),
+    prop2 = lag(prop2, 2),
+    prop3 = lag(prop3, 3),
+    prop4 = lag(prop4, 4),
+    prop5 = lag(prop5, 5),
+    prop6 = lag(prop6, 6),
+    prop7 = lag(prop7, 7)
+  ) %>%
+  select(ReturnYear = BroodYear, prop1,prop2,prop3,prop4,prop5,prop6,prop7)
 
 #write_csv(proportions, "return_proportions.csv")
 
+stocks <- df %>% pull(Stock) %>% unique
+arima_objects <- vector(mode="list", length=length(stocks))
+forecast_objects <- vector(mode="list", length=length(stocks))
+i=1
+for(st in stocks){
+  par(mfrow=c(3, 3))
+  
+  stock_proportions <- proportions %>% filter(Stock == st, if_any(prop1:prop7, ~ . != 0), !ReturnYear %in% c(2022, 2023, 2024, 2025))
+
+  arima_age_objects <- vector(mode="list", length=7)
+  forecast_age_objects <- vector(mode="list", length=7)
+  for(age in 1:7){
+    col_name <- paste0("prop",age)
+    stock_prop <- stock_proportions %>% pull(col_name, name=ReturnYear) 
+    arima_out <- auto.arima(stock_prop)
+    f <- forecast(arima_out)
+    plot(f, main=paste0(st, ": Age ",age), ylim=c(0, 1))
+
+    arima_age_objects[[age]] <- arima_out
+    forecast_age_objects[[age]] <- f
+
+  }
+  names(arima_age_objects) <- paste0("Age",1:7)
+  names(forecast_age_objects) <- paste0("Age",1:7)
+  arima_objects[[i]] <- arima_age_objects
+  forecast_objects[[i]] <- forecast_age_objects
+  i = i+1
+
+}
+
+names(arima_objects) <- stocks
+names(forecast_objects) <- stocks
+
+arima_objects[["Wood"]]$Age7
+as.matrix(forecast_objects[["Wood"]]$Age1[[4]])
+
+## Pull out point forecasts
+forecast_df <- data.frame(lapply(
+  forecast_objects,
+  function(s){
+    data.frame(lapply(
+      s,
+      function(x){
+        as.data.frame(x)[,1]
+      }
+    )) 
+  }
+)) %>% as_tibble() %>%
+  pivot_longer(everything(), names_to="stock_age", values_to="prop") %>%
+  separate(stock_age, into=c("stock", "age"), "\\.",  extra="merge") %>%
+  mutate(foreyear=rep(rep(c(1:10), each=length(stocks)*7))) %>%
+  pivot_wider(names_from="age", values_from="prop") %>%
+  arrange(stock, foreyear) %>%
+  replace_na(replace=list(0))
+  print(n=100)
+  
+
+forecast_df %>% pivot_longer(Age1:Age7, names_to="age", values_to="prop") %>%
+  ggplot() +
+    geom_line(aes(x=foreyear, y=prop, color=age))+
+    scale_y_continuous(limits=c(0, 1))+
+    theme_bw()+
+    facet_wrap(~stock)
 
 
 
 
+stock_proportions %>% print(n=100)
 
+rbind(forecast_objects[["Stellako"]]$Age1, forecast_objects[["Stellako"]]$Age2)
 
+tsibble(forecast_objects[["Stellako"]]$Age1[[4]])
+
+forecast_objects[["Stellako"]]$Age4 %>% as.data.frame
