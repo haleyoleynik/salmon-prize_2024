@@ -385,7 +385,10 @@ wt <- df %>%
 ricker.params <- read_csv("ricker_params.csv")
 
 # Merge the dataframes by 'stock'
-df_merged <- left_join(wt, ricker.params, by = "Stock")
+df_merged <- wt %>%
+  mutate(Stock = case_when(Stock == "Late Stuart" ~ "Late_Stuart",
+                   TRUE ~ Stock)) %>%
+  left_join(ricker.params, by = "Stock")
 
 wt <- df_merged %>%
   mutate(wt = lnrs-(a-b*Escapement))
