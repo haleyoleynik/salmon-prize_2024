@@ -5,6 +5,7 @@ require(tidyverse)
 require(readr)
 require(ggplot2)
 require(forecast)
+require(broom)
 
 # read data 
 df <- read_csv("Bristol_Columbia_Fraser_combined.csv")
@@ -359,3 +360,41 @@ rbind(forecast_objects[["Stellako"]]$Age1, forecast_objects[["Stellako"]]$Age2)
 tsibble(forecast_objects[["Stellako"]]$Age1[[4]])
 
 forecast_objects[["Stellako"]]$Age4 %>% as.data.frame
+
+# Fit stock-recruit models, get wt ------------
+
+# fit ricker model to find a and b params 
+ricker.params <- df %>% 
+  select(Stock, BroodYear, Escapement, Recruits) %>%
+  mutate(lnrs = log(Recruits/Escapement)) %>%
+  filter(!is.infinite(lnrs)) %>%
+  nest_by(Stock) %>% 
+  mutate(model = list(lm(lnrs ~ Escapement, data, na.action = na.omit))) %>% 
+  summarise(broom::tidy(model)) %>% 
+  ungroup()
+
+# calculate wt from a and b params 
+
+wt <- df %>% 
+  select(Stock, BroodYear, Escapement, Recruits) %>%
+  mutate(lnrs = log(Recruits/Escapement)) %>%
+  filter(!is.infinite(lnrs)) %>%
+  select(-Recruits)
+
+# ricker params saved in this .csv! 
+ricker.params <- read_csv("ricker_params.csv")
+
+# Merge the dataframes by 'stock'
+df_merged <- left_join(wt, ricker.params, by = "Stock")
+
+wt <- df_merged %>%
+  mutate(wt = lnrs-(a-b*Escapement))
+
+# save to .csv 
+# write_csv(wt, "ricker_anomalies.csv")
+
+
+
+
+
+
