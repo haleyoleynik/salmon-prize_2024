@@ -282,7 +282,7 @@ proportions <- new.df %>%
     prop6 = lag(prop6, 6),
     prop7 = lag(prop7, 7)
   ) %>%
-  select(ReturnYear = BroodYear, prop1,prop2,prop3,prop4,prop5,prop6,prop7)
+  select(ReturnYear = BroodYear, prop1,prop2,prop3,prop4,prop5,prop6,prop7, total)
 
 #write_csv(proportions, "return_proportions.csv")
 
@@ -391,13 +391,50 @@ df_merged <- wt %>%
   left_join(ricker.params, by = "Stock")
 
 wt <- df_merged %>%
-  mutate(wt = lnrs-(a-b*Escapement))
+  mutate(wt = lnrs-(a-b*Escapement)) %>%
+  mutate(pred_rec = Escapement*exp(a-b*Escapement+wt))
 
 # save to .csv 
 # write_csv(wt, "ricker_anomalies.csv")
 
+ricker_models <- read_csv("ricker_anomalies.csv")
+
+ggplot(ricker_models, aes(x=BroodYear, y=wt, color=Stock))+
+  geom_line()+
+  facet_wrap(~Stock)
+
+ricker_models %>% filter(Stock == "Late Stuart")
+
+stocks <- ricker_models %>% pull(Stock) %>% unique
+arima_objects <- vector(mode="list", length=length(stocks))
+forecast_objects <- vector(mode="list", length=length(stocks))
+i=1
+
+par(mfrow=c(4, 4))
+for(st in stocks){
+  
+  stock_proportions <- ricker_models %>% filter(Stock == st, !is.na(wt))
+
+  stock_prop <- stock_proportions %>% pull(wt, name=BroodYear) 
+  arima_out <- auto.arima(stock_prop)
+  f <- forecast(arima_out)
+  plot(f, main=st, ylim=c(-4, 4))
+
+  arima_objects[[i]] <- arima_out
+  forecast_objects[[i]] <- f
+  i = i+1
+
+}
 
 
+wt %>% filter(Stock == "Alagnak") %>% filter(BroodYear > max(BroodYear)-7)
 
+alagnak_props = forecast_df %>% filter(stock == "Alagnak", foreyear == 1) %>% select(Age1:Age7)
 
+3635218.*alagnak_props$Age7 + 3254953.*alagnak_props$Age6 + 2146123.*alagnak_props$Age5 +
+3811726.*alagnak_props$Age4 + 3955047.*alagnak_props$Age3 + 3340994.*alagnak_props$Age2 +
+2633320.*alagnak_props$Age1
 
+ggplot(proportions %>% filter(Stock == "Alagnak"))+
+  geom_line(aes(x=ReturnYear, y=total))+
+  geom_hline(yintercept = 3801680)
