@@ -46,55 +46,81 @@ long.df %>%
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
   facet_grid(vars(System),scales = "free")
 
-# Calculate total returns 
-try <- df %>% 
-  rowwise() %>%
-  mutate(Age1 = AgeClass_0.1,
-         Age2 = sum(AgeClass_0.2, AgeClass_1.1,na.rm=T),
-         Age3 = sum(AgeClass_0.3, AgeClass_1.2, AgeClass_2.1,na.rm=T),
-         Age4 = sum(AgeClass_0.4, AgeClass_1.3, AgeClass_2.2, AgeClass3.1,na.rm=T),
-         Age5 = sum(AgeClass_0.5, AgeClass_1.4, AgeClass_2.3, AgeClass_3.2,na.rm=T),
-         Age6 = sum(AgeClass_1.5, AgeClass_2.4, AgeClass_3.3,na.rm=T),
-         Age7 = AgeClass_3.4) %>%
-  select(System, Stock,BroodYear,Age1,Age2,Age3,Age4,Age5,Age6,Age7) %>%
-  group_by(Stock) %>%
-  mutate(Age1 = lag(Age1, 1),
-         Age2 = lag(Age2, 2),
-         Age3 = lag(Age3, 3),
-         Age4 = lag(Age4, 4),
-         Age5 = lag(Age5, 5),
-         Age6 = lag(Age6, 6),
-         Age7 = lag(Age7, 7)) %>%
-  ungroup() %>%
-  rowwise() %>%
-  mutate(TotalReturns = sum(Age1,Age2,Age3,Age4,Age5,Age6,Age7,na.rm=T))
+# ###
+# # Calculate TOTAL RETURNS and add years onto end of time series 
+# # Fraser 
+# fraser_total_returns <- df %>%
+#   filter(System == "Fraser") %>%
+#   group_by(Stock) %>%
+#   complete(BroodYear = 1948:2025) %>%
+#   ungroup() %>%
+#   rowwise() %>%
+#   mutate(Age1 = AgeClass_0.1,
+#          Age2 = sum(AgeClass_0.2, AgeClass_1.1,na.rm=T),
+#          Age3 = sum(AgeClass_0.3, AgeClass_1.2, AgeClass_2.1,na.rm=T),
+#          Age4 = sum(AgeClass_0.4, AgeClass_1.3, AgeClass_2.2, AgeClass3.1,na.rm=T),
+#          Age5 = sum(AgeClass_0.5, AgeClass_1.4, AgeClass_2.3, AgeClass_3.2,na.rm=T),
+#          Age6 = sum(AgeClass_1.5, AgeClass_2.4, AgeClass_3.3,na.rm=T),
+#          Age7 = AgeClass_3.4,
+#          Age8 = NA) %>%
+#   select(System, Stock,BroodYear,Age1,Age2,Age3,Age4,Age5,Age6,Age7, Age8) %>%
+#   group_by(Stock) %>%
+#   mutate(Age1 = lag(Age1, 1),
+#          Age2 = lag(Age2, 2),
+#          Age3 = lag(Age3, 3),
+#          Age4 = lag(Age4, 4),
+#          Age5 = lag(Age5, 5),
+#          Age6 = lag(Age6, 6),
+#          Age7 = lag(Age7, 7)) %>%
+#   ungroup() %>%
+#   rowwise() %>%
+#   mutate(TotalReturns = sum(Age1,Age2,Age3,Age4,Age5,Age6,Age7,na.rm=T))
+# 
+# ## Bristol 
+# bristol_total_returns <- df %>%
+#   filter(System == "Bristol_Bay") %>%
+#   group_by(Stock) %>%
+#   complete(BroodYear = 1948:2025) %>%
+#   ungroup() %>%
+#   rowwise() %>%
+#   mutate(Age1 = NA, 
+#          Age2 = AgeClass_0.1,
+#          Age3 = sum(AgeClass_0.2, AgeClass_1.1,na.rm=T),
+#          Age4 = sum(AgeClass_0.3, AgeClass_1.2, AgeClass_2.1,na.rm=T),
+#          Age5 = sum(AgeClass_0.4, AgeClass_1.3, AgeClass_2.2, AgeClass3.1,na.rm=T),
+#          Age6 = sum(AgeClass_0.5, AgeClass_1.4, AgeClass_2.3, AgeClass_3.2,na.rm=T),
+#          Age7 = sum(AgeClass_1.5, AgeClass_2.4, AgeClass_3.3,na.rm=T),
+#          Age8 = AgeClass_3.4) %>%
+#   select(System, Stock,BroodYear,Age1,Age2,Age3,Age4,Age5,Age6,Age7,Age8) %>%
+#   group_by(Stock) %>%
+#   mutate(Age2 = lag(Age2, 2),
+#          Age3 = lag(Age3, 3),
+#          Age4 = lag(Age4, 4),
+#          Age5 = lag(Age5, 5),
+#          Age6 = lag(Age6, 6),
+#          Age7 = lag(Age7, 7),
+#          Age8 = lag(Age8, 8)) %>%
+#   ungroup() %>%
+#   rowwise() %>%
+#   mutate(TotalReturns = sum(Age2,Age3,Age4,Age5,Age6,Age7,Age8na.rm=T))
+# 
+# # rbind total returns 
+# total_returns <- rbind(fraser_total_returns, bristol_total_returns)
 
-###
-# USE THIS !!!!! calculate total returns and add years onto end of time series 
-total_returns <- df %>%
-  group_by(Stock) %>%
-  complete(BroodYear = 1948:2025) %>%
-  ungroup() %>%
+# TOTAL RETURNS with the table they gave us 
+returns <- read_csv("updated_data/Bristol_Columbia_Fraser_Returns_combined.csv")
+
+returns %>%
   rowwise() %>%
-  mutate(Age1 = AgeClass_0.1,
-         Age2 = sum(AgeClass_0.2, AgeClass_1.1,na.rm=T),
-         Age3 = sum(AgeClass_0.3, AgeClass_1.2, AgeClass_2.1,na.rm=T),
-         Age4 = sum(AgeClass_0.4, AgeClass_1.3, AgeClass_2.2, AgeClass3.1,na.rm=T),
-         Age5 = sum(AgeClass_0.5, AgeClass_1.4, AgeClass_2.3, AgeClass_3.2,na.rm=T),
-         Age6 = sum(AgeClass_1.5, AgeClass_2.4, AgeClass_3.3,na.rm=T),
-         Age7 = AgeClass_3.4) %>%
-  select(System, Stock,BroodYear,Age1,Age2,Age3,Age4,Age5,Age6,Age7) %>%
-  group_by(Stock) %>%
-  mutate(Age1 = lag(Age1, 1),
-         Age2 = lag(Age2, 2),
-         Age3 = lag(Age3, 3),
-         Age4 = lag(Age4, 4),
-         Age5 = lag(Age5, 5),
-         Age6 = lag(Age6, 6),
-         Age7 = lag(Age7, 7)) %>%
-  ungroup() %>%
-  rowwise() %>%
-  mutate(TotalReturns = sum(Age1,Age2,Age3,Age4,Age5,Age6,Age7,na.rm=T))
+  mutate(Age2 = AgeClass_0.1,
+         Age3 = sum(AgeClass_0.2, AgeClass_1.1,na.rm=T),
+         Age4 = sum(AgeClass_0.3, AgeClass_1.2, AgeClass_2.1,na.rm=T),
+         Age5 = sum(AgeClass_0.4, AgeClass_1.3, AgeClass_2.2, AgeClass_3.1,na.rm=T),
+         Age6 = sum(AgeClass_0.5, AgeClass_1.4, AgeClass_2.3, AgeClass_3.2,na.rm=T),
+         Age7 = sum(AgeClass_1.5, AgeClass_2.4, AgeClass_3.3,na.rm=T),
+         Age8 = AgeClass_3.4) %>%
+  mutate(TotalReturns = sum(Age2,Age3,Age4,Age5,Age6,Age7,Age8, na.rm=T)) %>%
+  select(System,River,ReturnYear,Age2,Age3,Age4,Age5,Age6,Age7,Age8,TotalReturns)
 
 
 st <- "Wood"
@@ -241,48 +267,49 @@ lines((nrow(alagnak_returns) + 1):(nrow(alagnak_returns) + length(forecasted_lnr
 exp(lnrs)*Sp 
 
 # Calculate proportions for return years ---------- 
+# TOTAL RETURNS with the table they gave us 
+brood_table <- read_csv("updated_data/Bristol_Columbia_Fraser_BroodT_combined.csv")
 
-df <- df %>%
-  mutate(Stock = ifelse(Stock == "Late Stuart", "LateStuart", Stock))
+brood_table <- brood_table %>%
+  mutate(Stock = ifelse(River == "Late Stuart", "LateStuart", River))
 
-new.df <- df %>%
-  group_by(Stock) %>%
+new.df <- brood_table %>%
+  group_by(River) %>%
   complete(BroodYear = 1948:2025) %>%
   ungroup() %>%
   rowwise() %>%
-  mutate(Age1 = AgeClass_0.1,
-         Age2 = sum(AgeClass_0.2, AgeClass_1.1,na.rm=T),
-         Age3 = sum(AgeClass_0.3, AgeClass_1.2, AgeClass_2.1,na.rm=T),
-         Age4 = sum(AgeClass_0.4, AgeClass_1.3, AgeClass_2.2, AgeClass3.1,na.rm=T),
-         Age5 = sum(AgeClass_0.5, AgeClass_1.4, AgeClass_2.3, AgeClass_3.2,na.rm=T),
-         Age6 = sum(AgeClass_1.5, AgeClass_2.4, AgeClass_3.3,na.rm=T),
-         Age7 = AgeClass_3.4) %>%
-  select(System, Stock,BroodYear,Age1,Age2,Age3,Age4,Age5,Age6,Age7) 
-
+  mutate(Age2 = AgeClass_0.1,
+         Age3 = sum(AgeClass_0.2, AgeClass_1.1,na.rm=T),
+         Age4 = sum(AgeClass_0.3, AgeClass_1.2, AgeClass_2.1,na.rm=T),
+         Age5 = sum(AgeClass_0.4, AgeClass_1.3, AgeClass_2.2, AgeClass_3.1,na.rm=T),
+         Age6 = sum(AgeClass_0.5, AgeClass_1.4, AgeClass_2.3, AgeClass_3.2,na.rm=T),
+         Age7 = sum(AgeClass_1.5, AgeClass_2.4, AgeClass_3.3,na.rm=T),
+         Age8 = AgeClass_3.4) %>%
+  select(System,Stock,BroodYear,Age2,Age3,Age4,Age5,Age6,Age7,Age8) 
 
 proportions <- new.df %>%
   rowwise() %>%
-  mutate(total = sum(c_across(Age1:Age7),na.rm=T)) %>%
+  mutate(total = sum(c_across(Age2:Age8),na.rm=T)) %>%
   mutate(
-    prop1 = Age1 / total,
     prop2 = Age2 / total,
     prop3 = Age3 / total,
     prop4 = Age4 / total,
     prop5 = Age5 / total,
     prop6 = Age6 / total,
-    prop7 = Age7 / total
+    prop7 = Age7 / total,
+    prop8 = Age8 / total
   ) %>%
   group_by(Stock) %>%
   mutate(
-    prop1 = lag(prop1, 1),
     prop2 = lag(prop2, 2),
     prop3 = lag(prop3, 3),
     prop4 = lag(prop4, 4),
     prop5 = lag(prop5, 5),
     prop6 = lag(prop6, 6),
-    prop7 = lag(prop7, 7)
+    prop7 = lag(prop7, 7),
+    prop8 = lag(prop8, 8)
   ) %>%
-  select(ReturnYear = BroodYear, prop1,prop2,prop3,prop4,prop5,prop6,prop7, total)
+  select(ReturnYear = BroodYear,prop2,prop3,prop4,prop5,prop6,prop7,prop8, total)
 
 #write_csv(proportions, "return_proportions.csv")
 
