@@ -110,7 +110,7 @@ long.df %>%
 # TOTAL RETURNS with the table they gave us 
 returns <- read_csv("updated_data/Bristol_Columbia_Fraser_Returns_combined.csv")
 
-returns %>%
+total_returns <- returns %>%
   rowwise() %>%
   mutate(Age2 = AgeClass_0.1,
          Age3 = sum(AgeClass_0.2, AgeClass_1.1,na.rm=T),
@@ -120,7 +120,7 @@ returns %>%
          Age7 = sum(AgeClass_1.5, AgeClass_2.4, AgeClass_3.3,na.rm=T),
          Age8 = AgeClass_3.4) %>%
   mutate(TotalReturns = sum(Age2,Age3,Age4,Age5,Age6,Age7,Age8, na.rm=T)) %>%
-  select(System,River,ReturnYear,Age2,Age3,Age4,Age5,Age6,Age7,Age8,TotalReturns)
+  select(System,River,ReturnYear,Age2,Age3,Age4,Age5,Age6,Age7,Age8,TotalReturns,Total_Returns)
 
 
 st <- "Wood"
