@@ -122,150 +122,6 @@ total_returns <- returns %>%
   mutate(TotalReturns = sum(Age2,Age3,Age4,Age5,Age6,Age7,Age8, na.rm=T)) %>%
   select(System,River,ReturnYear,Age2,Age3,Age4,Age5,Age6,Age7,Age8,TotalReturns,Total_Returns)
 
-
-st <- "Wood"
-
-returns <- lnrs %>% filter(Stock == st, !(BroodYear %in% c(2002:2007))) %>% select(BroodYear, lnrs=lnrs) %>% na.omit
-
-totret_mat <- try %>% filter(Stock == st, BroodYear %in% returns$BroodYear) %>% pull(TotalReturns) %>% as.matrix()
-age_returns <- try %>% filter(Stock == st, BroodYear %in% returns$BroodYear) %>%
-  select(starts_with("Age")) %>%
-  as.matrix
-
-xreg <- t(apply(as.matrix(1:nrow(age_returns)), 1, \(i) age_returns[i,]/totret_mat[i,1]))
-# xreg <- age_returns
-
-#arima_out <- Arima(returns$TotalReturns[1:59], order=c(8, 1, 0))#, xreg=xreg[1:59,3:5])
-arima_out <- auto.arima(returns$lnrs, xreg=xreg[,3:5])
-f <- forecast(arima_out, xreg=xreg[60:61, 3:5])
-plot(f, ylim=c(0, 3))
-
-plot(f$fitted)
-
-
-# ARIMA models with lnrs time series --------------------
-quesnel_totalreturns <- lnrs %>% filter(Stock == "Wood") %>%
-  filter(!is.na(lnrs), !(BroodYear %in% c(2002:2007))) %>%
-  pull(lnrs)
-
-arima_out <- auto.arima(quesnel_totalreturns)
-f <- forecast(arima_out)
-
-par(mfrow = c(1,1))
-plot(f)
-
-pred <- quesnel_totalreturns+arima_out$residuals
-plot(quesnel_totalreturns, type="l", ylim = c(-3,6))
-lines(pred, col="red")
-
-# can you bound it at 0 ????
-
-## Pink salmon as a covariate --------
-np.pink <- readr::read_csv("/Users/haleyoleynik/Documents/GitHub/salmon-prize_2024/covariate_data/NP_pink.csv")
-
-lnrs.pink <- lnrs %>%
-  rename(year = BroodYear) %>%
-  left_join(np.pink, by = "year")
-
-quesnel_lnrs_pink <- lnrs.pink %>% filter(Stock == "Late Stuart") %>%
-  filter(lnrs > 0) %>%
-  select(year, lnrs, pink)
-
-arima_out <- auto.arima(quesnel_lnrs_pink$lnrs, xreg=quesnel_lnrs_pink$pink)
-f <- forecast(arima_out, xreg=c(0.3862020,0.6980289))
-plot(f)
-
-# plot the fit 
-plot(f$fitted, ylim = c(0,5)) # what is this?? 
-lines(quesnel_lnrs_pink$lnrs, col="red")
-
-lnrs.pink.naomit <- lnrs.pink %>% 
-  na.omit()
-
-ccf(lnrs.pink.naomit$pink, lnrs.pink.naomit$lnrs)
-plot(lnrs.pink.naomit$pink, lnrs.pink.naomit$lnrs)
-
-## all stocks ----------- 
-
-# filter out Bonneville, missing data 
-lnrs.pink <- lnrs.pink %>% filter(Stock != "Bonneville")
-
-par(mfrow=c(3, 5))
-stocks <- lnrs.pink %>% pull(Stock) %>% unique
-for(s in stocks){
-  tseries <- lnrs.pink %>% filter(Stock == s) %>% filter(lnrs > 0) %>% pull(lnrs) %>% na.omit() 
-  acf(tseries, main=s)
-}
-
-
-par(mfrow=c(3, 5))
-stocks <- lnrs.pink %>% pull(Stock) %>% unique
-for(s in stocks){
-  tseries <- lnrs.pink %>% filter(Stock == s) %>% filter(lnrs > 0) %>% pull(lnrs) %>% na.omit() 
-  age4 <- try %>% filter(Stock == s) %>% pull(Age5)
-  
-  totret_mat <- returns$TotalReturns %>% as.matrix()
-  age_returns <- try %>% filter(Stock == s) %>%
-    select(starts_with("Age")) %>%
-    as.matrix
-  
-  xreg <- t(apply(as.matrix(1:nrow(age_returns)), 1, \(i) age_returns[i,]/totret_mat[i,1]))
-  
-  
-  plot(xreg[,2], tseries, main=s)
-  # c <- cor.test(tseries, age4)
-}
-
-
-#######
-#######
-# How to do the linear model residual fits
-#######
-#######
-
-alagnak_returns <- lnrs %>% filter(Stock == "Wood") %>% select(BroodYear, lnrs) %>% na.omit()
-
-model <- lm(lnrs ~ BroodYear, data=alagnak_returns)
-preds <- predict(model, newdata=data.frame(BroodYear=1963:2024))
-summary(model)
-
-plot(1:nrow(alagnak_returns), alagnak_returns$lnrs, type="l")
-lines(1:length(preds), preds, col="red")
-alagnak_returns
-
-ar_out <- auto.arima(model$residuals)
-ar_out
-
-plot(model$residuals)
-points(ar_out$residuals, col="red")
-f1 <- forecast(ar_out)
-f1
-plot(f1)
-
-#             Point Forecast      Lo 80     Hi 80      Lo 95    Hi 95
-# 2024 = 62   4.464680e-06 -0.6893410   0.6893499   -1.0542584  1.054267
-
-
-# Back calculate lnrs from residuals --- 
-# Get the forecasted residuals
-forecasted_residuals <- f1$mean
-
-# Combine the linear model predictions with the forecasted residuals
-forecasted_lnrs <- preds[54:62] + forecasted_residuals[1:9]
-
-# Plot the original lnrs data, the linear model predictions, and the final forecasted lnrs values
-plot(1:nrow(alagnak_returns), alagnak_returns$lnrs, type="l", ylim=range(c(alagnak_returns$lnrs, preds, forecasted_lnrs), finite=TRUE))
-#lines(1:length(preds), preds, col="red")
-lines((nrow(alagnak_returns) + 1):(nrow(alagnak_returns) + length(forecasted_lnrs)), forecasted_lnrs, col="blue")
-
-## Back calculate recruits from lnrs ---
-
-# calculate recruits from lnrs and Spawners
-# R = exp(lnrs)*Sp
-# in year 1, R+4 = exp(lnrs)*Sp
-# so for 2024, we want to know the lnrs for 2020 (when those recruits are spawned)
-exp(lnrs)*Sp 
-
 # Calculate proportions for return years ---------- 
 # TOTAL RETURNS with the table they gave us 
 brood_table <- read_csv("updated_data/Bristol_Columbia_Fraser_BroodT_combined.csv")
@@ -313,30 +169,34 @@ proportions <- new.df %>%
 
 #write_csv(proportions, "return_proportions.csv")
 
-stocks <- df %>% pull(Stock) %>% unique
+stocks <- new.df %>% filter(!is.na(Stock)) %>% pull(Stock) %>% unique
 arima_objects <- vector(mode="list", length=length(stocks))
 forecast_objects <- vector(mode="list", length=length(stocks))
 i=1
 for(st in stocks){
   par(mfrow=c(3, 3))
+  if(st == "Bonneville Lock & Dam"){
+    i <- i+1
+    next;
+  }
   
-  stock_proportions <- proportions %>% filter(Stock == st, if_any(prop1:prop7, ~ . != 0), !ReturnYear %in% c(2022, 2023, 2024, 2025))
+  stock_proportions <- proportions %>% filter(Stock == st, if_any(prop2:prop7, ~ . != 0), !ReturnYear %in% c(2022, 2023, 2024, 2025))
 
-  arima_age_objects <- vector(mode="list", length=7)
-  forecast_age_objects <- vector(mode="list", length=7)
-  for(age in 1:7){
+  arima_age_objects <- vector(mode="list", length=6)
+  forecast_age_objects <- vector(mode="list", length=6)
+  for(age in 2:7){
     col_name <- paste0("prop",age)
     stock_prop <- stock_proportions %>% pull(col_name, name=ReturnYear) 
     arima_out <- auto.arima(stock_prop)
     f <- forecast(arima_out)
-    plot(f, main=paste0(st, ": Age ",age), ylim=c(0, 1))
+    # plot(f, main=paste0(st, ": Age ",age), ylim=c(0, 1))
 
-    arima_age_objects[[age]] <- arima_out
-    forecast_age_objects[[age]] <- f
+    arima_age_objects[[age-1]] <- arima_out
+    forecast_age_objects[[age-1]] <- f
 
   }
-  names(arima_age_objects) <- paste0("Age",1:7)
-  names(forecast_age_objects) <- paste0("Age",1:7)
+  names(arima_age_objects) <- paste0("Age",2:7)
+  names(forecast_age_objects) <- paste0("Age",2:7)
   arima_objects[[i]] <- arima_age_objects
   forecast_objects[[i]] <- forecast_age_objects
   i = i+1
@@ -345,6 +205,7 @@ for(st in stocks){
 
 names(arima_objects) <- stocks
 names(forecast_objects) <- stocks
+forecast_objects <- forecast_objects[-2]
 
 arima_objects[["Wood"]]$Age7
 as.matrix(forecast_objects[["Wood"]]$Age1[[4]])
@@ -363,14 +224,14 @@ forecast_df <- data.frame(lapply(
 )) %>% as_tibble() %>%
   pivot_longer(everything(), names_to="stock_age", values_to="prop") %>%
   separate(stock_age, into=c("stock", "age"), "\\.",  extra="merge") %>%
-  mutate(foreyear=rep(rep(c(1:10), each=length(stocks)*7))) %>%
+  mutate(foreyear=rep(rep(c(1:10), each=(length(stocks)-1)*6))) %>%
   pivot_wider(names_from="age", values_from="prop") %>%
   arrange(stock, foreyear) %>%
   replace_na(replace=list(0))
   print(n=100)
   
 
-forecast_df %>% pivot_longer(Age1:Age7, names_to="age", values_to="prop") %>%
+forecast_df %>% pivot_longer(Age2:Age7, names_to="age", values_to="prop") %>%
   ggplot() +
     geom_line(aes(x=foreyear, y=prop, color=age))+
     scale_y_continuous(limits=c(0, 1))+
@@ -418,7 +279,7 @@ df_merged <- wt %>%
   left_join(ricker.params, by = "Stock")
 
 wt <- df_merged %>%
-  mutate(wt = lnrs-(a-b*Escapement)) %>%
+  mutate(wt = ifelse(is.na(lnrs), 0, lnrs-(a-b*Escapement))) %>%
   mutate(pred_rec = Escapement*exp(a-b*Escapement+wt))
 
 # save to .csv 
@@ -432,7 +293,7 @@ ggplot(ricker_models, aes(x=BroodYear, y=wt, color=Stock))+
 
 ricker_models %>% filter(Stock == "Late Stuart")
 
-stocks <- ricker_models %>% pull(Stock) %>% unique
+stocks <- wt %>% pull(Stock) %>% unique
 arima_objects <- vector(mode="list", length=length(stocks))
 forecast_objects <- vector(mode="list", length=length(stocks))
 i=1
@@ -440,7 +301,7 @@ i=1
 par(mfrow=c(4, 4))
 for(st in stocks){
   
-  stock_proportions <- ricker_models %>% filter(Stock == st, !is.na(wt))
+  stock_proportions <- wt %>% filter(Stock == st, !is.na(wt))
 
   stock_prop <- stock_proportions %>% pull(wt, name=BroodYear) 
   arima_out <- auto.arima(stock_prop)
@@ -456,12 +317,42 @@ for(st in stocks){
 
 wt %>% filter(Stock == "Alagnak") %>% filter(BroodYear > max(BroodYear)-7)
 
-alagnak_props = forecast_df %>% filter(stock == "Alagnak", foreyear == 1) %>% select(Age1:Age7)
+alagnak_props = forecast_df %>% filter(stock == "Alagnak", foreyear == 1) %>% select(Age2:Age7)
 
-3635218.*alagnak_props$Age7 + 3254953.*alagnak_props$Age6 + 2146123.*alagnak_props$Age5 +
-3811726.*alagnak_props$Age4 + 3955047.*alagnak_props$Age3 + 3340994.*alagnak_props$Age2 +
-2633320.*alagnak_props$Age1
+2041824*alagnak_props$Age7 + 1581426*alagnak_props$Age6 + 820458*alagnak_props$Age5 +
+2386518*alagnak_props$Age4 + 3236904*alagnak_props$Age3 + 1668222*alagnak_props$Age2
 
 ggplot(proportions %>% filter(Stock == "Alagnak"))+
   geom_line(aes(x=ReturnYear, y=total))+
   geom_hline(yintercept = 3801680)
+
+pred_2024 <- wt %>%
+  filter(!is.na(pred_rec)) %>%
+  select(Stock, BroodYear, Escapement, pred_rec) %>%
+  left_join(
+    forecast_df %>% filter(foreyear == 1) %>% select(stock, Age2:Age7),
+    by=c("Stock"="stock")
+  ) %>%
+  filter(BroodYear > max(BroodYear)-7) %>%
+  group_by(Stock) %>%
+  summarise(
+      st = Stock,
+      return_2024 = sum(pred_rec * rev(props %>% filter(stock == st) %>% select(Age2:Age7) %>% as.matrix))
+  ) %>%
+  distinct() %>%
+  rename("River" = "Stock")
+
+props <- forecast_df %>% 
+  filter(foreyear == 1) %>% 
+  select(stock, Age2:Age7) %>%
+  replace_na(list(Age1=0, Age2=0, Age3=0, Age4=0, Age5=0, Age6=0, Age7=0)) %>%
+  mutate(across(Age2:Age7, ~ ifelse(.x < 0, 0, .x)))
+
+ggplot(total_returns)+
+  geom_line(aes(x=ReturnYear, y=Total_Returns)) +
+  geom_hline(data=pred_2024, aes(yintercept = return_2024)) + 
+  facet_wrap(~River, scales="free_y")
+
+wt %>% filter(Stock == "Alagnak") %>% print(n=100)
+
+total_returns %>% filter(Stock == "Alagnak") %>% print(n=100)
